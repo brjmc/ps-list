@@ -14,7 +14,7 @@ declare namespace psList {
 		readonly pid: number;
 		readonly name: string;
 		readonly ppid: number;
-
+		readonly stat: string;
 		/**
 		Not supported on Windows.
 		*/
