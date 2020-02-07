@@ -27,9 +27,8 @@ const nonWindowsMultipleCalls = async (options = {}) => {
 	const flags = (options.all === false ? '' : 'a') + 'wwxo';
 	const ret = {};
 
-	await Promise.all(['comm', 'args', 'ppid', 'uid', '%cpu', '%mem'].map(async cmd => {
+	await Promise.all(['comm', 'args', 'ppid', 'uid', '%cpu', '%mem', 'stat'].map(async cmd => {
 		const {stdout} = await execFile('ps', [flags, `pid,${cmd}`], {maxBuffer: TEN_MEGABYTES});
-
 		for (let line of stdout.trim().split('\n').slice(1)) {
 			line = line.trim();
 			const [pid] = line.split(' ', 1);
@@ -54,13 +53,14 @@ const nonWindowsMultipleCalls = async (options = {}) => {
 			ppid: Number.parseInt(value.ppid, 10),
 			uid: Number.parseInt(value.uid, 10),
 			cpu: Number.parseFloat(value['%cpu']),
-			memory: Number.parseFloat(value['%mem'])
+			memory: Number.parseFloat(value['%mem']),
+			stat: value.stat
 		}));
 };
 
 const ERROR_MESSAGE_PARSING_FAILED = 'ps output parsing failed';
 
-const psFields = 'pid,ppid,uid,%cpu,%mem,comm,args';
+const psFields = 'pid,ppid,uid,%cpu,%mem,comm,args,stat';
 
 // TODO: Use named capture groups when targeting Node.js 10
 const psOutputRegex = /^[ \t]*(\d+)[ \t]+(\d+)[ \t]+(\d+)[ \t]+(\d+\.\d+)[ \t]+(\d+\.\d+)[ \t]+/; // Groups: pid, ppid, uid, cpu, mem
@@ -99,7 +99,8 @@ const nonWindowsSingleCall = async (options = {}) => {
 			cpu: Number.parseFloat(match[4]),
 			memory: Number.parseFloat(match[5]),
 			name: undefined,
-			cmd: undefined
+			cmd: undefined,
+			stat: line.trim().split(/\s/).pop()
 		};
 		if (process.pid === psPid) {
 			psIndex = i;
@@ -117,7 +118,7 @@ const nonWindowsSingleCall = async (options = {}) => {
 	const commLength = argsPosition - commPosition;
 	for (const [i, line] of lines.entries()) {
 		processes[i].name = line.slice(commPosition, commPosition + commLength).trim();
-		processes[i].cmd = line.slice(argsPosition).trim();
+		processes[i].cmd = line.slice(argsPosition, line.indexOf(processes[i].stat)).trim();
 	}
 
 	processes.splice(psIndex, 1);
